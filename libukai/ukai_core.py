@@ -35,6 +35,7 @@ import json
 import os
 import stat
 import sys
+import threading
 import zlib
 
 from ukai_config import UKAIConfig
@@ -49,6 +50,9 @@ from ukai_metadata import ukai_metadata_create, ukai_metadata_destroy
 from ukai_node_error_state import UKAINodeErrorStateSet
 from ukai_rpc import UKAIXMLRPCTranslation
 from ukai_statistics import UKAIStatistics, UKAIImageStatistics
+
+# XXX Fix this
+lock = threading.Lock()
 
 class UKAIWriters(object):
     def __init__(self):
@@ -125,25 +129,33 @@ class UKAICore(object):
         return ret, json.dumps(st)
 
     def open(self, path, flags):
-        ret = 0
-        image_name = path[1:]
-        metadata = self._get_metadata(image_name)
-        if metadata is None:
-            return errno.ENOENT, None
-        self._fh += 1
-        if (flags & 3) != os.O_RDONLY:
-            if self._writers.add_writer(image_name, self._fh) == errno.EBUSY:
-                return errno.EBUSY, None
-        if self._open_count.increment(image_name) == 1:
-            self._add_image(image_name)
-        return 0, self._fh
+      try:
+          lock.acquire()
+          ret = 0
+          image_name = path[1:]
+          metadata = self._get_metadata(image_name)
+          if metadata is None:
+              return errno.ENOENT, None
+          self._fh += 1
+          if (flags & 3) != os.O_RDONLY:
+              if self._writers.add_writer(image_name, self._fh) == errno.EBUSY:
+                  return errno.EBUSY, None
+          if self._open_count.increment(image_name) == 1:
+              self._add_image(image_name)
+          return 0, self._fh
+      finally:
+          lock.release()
 
     def release(self, path, fh):
-        image_name = path[1:]
-        self._writers.remove_writer(image_name, fh)
-        if self._open_count.decrement(image_name) == 0:
-            self._remove_image(image_name)
-        return 0
+      try:
+          lock.acquire()
+          image_name = path[1:]
+          self._writers.remove_writer(image_name, fh)
+          if self._open_count.decrement(image_name) == 0:
+              self._remove_image(image_name)
+          return 0
+      finally:
+          lock.release()
 
     def read(self, path, str_size, str_offset):
         image_name = path[1:]
