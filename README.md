@@ -115,6 +115,17 @@ The following parameters can be configured.
   * `block_size`: The default block size of a newly created disk
     image.
 
+The below is a sample configuration file.
+    {
+        "id": "10.0.0.5",
+        "metadata_servers": "10.0.10.1,10.0.10.2,10.0.10.3",
+        "core_server": "10.0.0.5",
+        "core_port": 22221,
+        "data_root": "/var/ukai/data",
+        "blockname_format": "%08d",
+        "ifaddr_cache": true
+    }
+
 
 ## Start the UKAI filesystem
 
