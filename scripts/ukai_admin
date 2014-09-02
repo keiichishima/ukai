@@ -212,6 +212,16 @@ def main():
         if opt_pair[0] == '-p':
             config.set('core_port', opt_pair[1])
 
+    # Aliases
+    if args[0] == 'touch':
+        args[0] = 'create_image'
+    if args[0] == 'rm':
+        args[0] = 'destroy_image'
+    if args[0] == 'ls':
+        args[0] = 'get_image_names'
+    if args[0] == 'stat':
+        args[0] = 'get_image_info'
+
     admin = UKAIAdmin(config)
     if not hasattr(admin, args[0]):
         usage()
