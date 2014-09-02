@@ -230,14 +230,21 @@ class UKAICore(object):
 
     ''' Proxy server processing.
     '''
-    def proxy_read(self, image_name, block_size, block_index, offset,
-                   size):
+    def proxy_read(self, image_name, str_block_size, str_block_index,
+                   str_offset, str_size):
+        block_size = int(str_block_size)
+        block_index = int(str_block_index)
+        offset = int(str_offset)
+        size = int(str_size)
         data = ukai_local_read(image_name, block_size, block_index,
                                offset, size, self._config)
         return self._rpc_trans.encode(zlib.compress(data))
 
-    def proxy_write(self, image_name, block_size, block_index, offset,
-                    encoded_data):
+    def proxy_write(self, image_name, str_block_size, str_block_index,
+                    str_offset, encoded_data):
+        block_size = int(block_size)
+        block_index = int(str_block_index)
+        offset = int(str_offset)
         data = zlib.decompress(self._rpc_trans.decode(encoded_data))
         return ukai_local_write(image_name, block_size, block_index,
                                 offset, data, self._config)
