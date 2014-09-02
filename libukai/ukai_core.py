@@ -242,7 +242,7 @@ class UKAICore(object):
 
     def proxy_write(self, image_name, str_block_size, str_block_index,
                     str_offset, encoded_data):
-        block_size = int(block_size)
+        block_size = int(str_block_size)
         block_index = int(str_block_index)
         offset = int(str_offset)
         data = zlib.decompress(self._rpc_trans.decode(encoded_data))
