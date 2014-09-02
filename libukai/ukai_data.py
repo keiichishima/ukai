@@ -146,9 +146,9 @@ class UKAIData(object):
         assert size > 0
         assert offset >= 0
 
-        if offset > self._metadata.used_size:
+        if offset >= self._metadata.used_size:
             # end of the file.
-            return (0)
+            return ('')
         if offset + size > self._metadata.used_size:
             # shorten the size not to overread the end of the file.
             size = self._metadata.used_size - offset
