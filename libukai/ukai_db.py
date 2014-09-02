@@ -60,10 +60,10 @@ class UKAIDB(object):
     def get_image_names(self):
         assert False
 
-UKAI_ZK_DB_LOCKS_DIR    = '/metadata/locks'
-UKAI_ZK_DB_CONTENTS_DIR = '/metadata/contents'
-UKAI_ZK_DB_READERS_DIR  = '/metadata/readers'
-UKAI_ZK_DB_WRITERS_DIR  = '/metadata/writers'
+UKAI_ZK_DB_LOCKS_DIR    = '/ukai/metadata/locks'
+UKAI_ZK_DB_CONTENTS_DIR = '/ukai/metadata/contents'
+UKAI_ZK_DB_READERS_DIR  = '/ukai/metadata/readers'
+UKAI_ZK_DB_WRITERS_DIR  = '/ukai/metadata/writers'
 class UKAIZooKeeperDB(UKAIDB):
     '''The UKAIZooKeeperDB class provides an interface class to the
     ZooKeeper cluster.
