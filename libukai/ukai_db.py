@@ -29,6 +29,8 @@
 import json
 import threading
 
+import redis
+
 import kazoo.client
 
 class UKAIDB(object):
@@ -59,6 +61,85 @@ class UKAIDB(object):
 
     def get_image_names(self):
         assert False
+
+UKAI_REDIS_DB_LOCKS_DIR    = '/ukai/metadata/locks'
+UKAI_REDIS_DB_CONTENTS_DIR = '/ukai/metadata/contents'
+UKAI_REDIS_DB_READERS_DIR  = '/ukai/metadata/readers'
+UKAI_REDIS_DB_WRITERS_DIR  = '/ukai/metadata/writers'
+class UKAIRedisDB(UKAIDB):
+    def __init__(self):
+        super(UKAIRedisDB, self).__init__()
+
+    def connect(self, config):
+        self._servers = config.get('metadata_servers')
+        self._conn_pool = redis.ConnectionPool(host=self._servers)
+        self._client = redis.Redis(connection_pool=self._conn_pool)
+
+    def put_metadata(self, image_name, metadata):
+        contents_file = UKAI_REDIS_DB_CONTENTS_DIR + '/' + image_name
+        lock_file = UKAI_REDIS_DB_LOCKS_DIR + '/' + image_name
+        with self._client.lock(lock_file):
+            self._client.set(contents_file, json.dumps(metadata))
+
+    def get_metadata(self, image_name):
+        contents_file = UKAI_REDIS_DB_CONTENTS_DIR + '/' + image_name
+        lock_file = UKAI_REDIS_DB_LOCKS_DIR + '/' + image_name
+        ret = None
+        with self._client.lock(lock_file):
+            ret_json = self._client.get(contents_file)
+            if ret_json is not None:
+                ret = json.loads(ret_json)
+        return ret
+
+    def delete_metadata(self, image_name):
+        contents_file = UKAI_REDIS_DB_CONTENTS_DIR + '/' + image_name
+        lock_file = UKAI_REDIS_DB_LOCKS_DIR + '/' + image_name
+        with self._client.lock(lock_file):
+            if self._client.exists(contents_file) is False:
+                return
+            self._client.delete(contents_file)
+
+    def join_reader(self, image_name, node):
+        readers_file = UKAI_REDIS_DB_READERS_DIR + '/' + image_name
+        lock_file = UKAI_REDIS_DB_LOCKS_DIR + '/' + image_name
+        with self._client.lock(lock_file):
+            readers = []
+            readers_json = self._client.get(readers_file)
+            if readers_json is not None:
+                readers = json.loads(readers_json)
+            if node not in readers:
+                readers.append(node)
+            self._client.set(readers_file, json.dumps(readers))
+
+    def leave_reader(self, image_name, node):
+        readers_file = UKAI_ZK_DB_READERS_DIR + '/' + image_name
+        lock_file = UKAI_REDIS_DB_LOCKS_DIR + '/' + image_name
+        with self._client.lock(lock_file):
+            if self._client.exists(readers_file) is None:
+                return
+            readers_json = self._client.get(readers_file)
+            readers = json.loads(readers_json)
+            if node in readers:
+                readers.remove(node)
+                if len(readers) == 0:
+                    self._client.delete(readers_file)
+                else:
+                    self._client.set(readers_file, json.dumps(readers))
+
+    def get_readers(self, image_name):
+        readers_file = UKAI_REDIS_DB_READERS_DIR + '/' + image_name
+        lock_file = UKAI_REDIS_DB_LOCKS_DIR + '/' + image_name
+        with self._client.lock(lock_file):
+            readers = []
+            readers_json = self._client.get(readers_file)
+            if readers_json is not None:
+                readers = json.loads(readers_json)
+            return readers
+
+    def get_image_names(self):
+        keys = self._client.keys(UKAI_REDIS_DB_CONTENTS_DIR + '*')
+        return [image_name[len(UKAI_REDIS_DB_CONTENTS_DIR) + 1:]
+                for image_name in keys]
 
 UKAI_ZK_DB_LOCKS_DIR    = '/ukai/metadata/locks'
 UKAI_ZK_DB_CONTENTS_DIR = '/ukai/metadata/contents'
@@ -194,14 +275,23 @@ class UKAIZooKeeperDB(UKAIDB):
         finally:
             self._lock.release()
 
-ukai_db_client = UKAIZooKeeperDB()
+# ukai_db_client = UKAIZooKeeperDB()
+ukai_db_client = UKAIRedisDB()
 
 if __name__ == '__main__':
     from ukai_config import UKAIConfig
     config = UKAIConfig()
-    db = UKAIZooKeeperDB()
+#    db = UKAIZooKeeperDB()
+    db = UKAIRedisDB()
     db.connect(config)
     db.put_metadata('test', 'hoge')
     print db.get_metadata('test')
     print db.get_image_names()
     db.delete_metadata('test')
+    print db.get_readers('test')
+    db.join_reader('test', '192.168.1.1')
+    db.join_reader('test', '192.168.1.2')
+    print db.get_readers('test')
+    db.leave_reader('test', '192.168.1.1')
+    db.leave_reader('test', '192.168.1.2')
+    print db.get_readers('test')
