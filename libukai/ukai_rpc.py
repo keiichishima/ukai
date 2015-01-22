@@ -1,4 +1,4 @@
-# Copyright 2014
+# Copyright 2014, 2015
 # IIJ Innovation Institute Inc. All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or
@@ -26,52 +26,87 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
 # OF SUCH DAMAGE.
 
+import socket
 import xmlrpclib
 
-class UKAIRPCClient(object):
-    def call(self, method, *params):
-        # must subclass.
-        assert(False)
+class UKAIRPCConnection(object):
+    def __init__(self):
+        '''Initializes connection pool
 
-class UKAIRPCCall(object):
-    def call(self, method, *params):
-        # must subclass.
-        assert(False)
+        '''
+        self._servers = {}
 
-class UKAIRPCTranslation(object):
+    def call(self, server, port, method, *params):
+        '''Gets an existing RPC connection from the connection pool and make
+        an RPC call.  The subclass must implement the _call(),
+        _get_conn(), and _put_conn() inner methods.
+
+        '''
+        conn = self._get_conn(server, port)
+        ret = None
+        try:
+            ret = self._call(conn, method, *params)
+        except socket.error, e:
+            print e[0]
+            del conn
+            raise
+        else:
+            self._put_conn(server, port, conn)
+
+        return ret
+
     def encode(self, source):
-        return source
+        '''Returns RPC dependent encoded data.  This method must be
+        subclassed and implemented.
+
+        '''
+        assert(False)
 
     def decode(self, source):
-        return source
+        '''Returns RPC dependent decoded data.  This method must be
+        subclassed and implemented.
 
-class UKAIXMLRPCClient(UKAIRPCClient):
-    def __init__(self, config):
-        self._config = config
+        '''
+        assert(False)
 
-    def call(self, method, *params):
-        rpc_call = UKAIXMLRPCCall(self._config.get('core_server'),
-                                  self._config.get('core_port'))
-        return rpc_call.call(method, *params)
+    def _call(self, conn, method, *params):
+        assert(False)
 
-class UKAIXMLRPCCall(UKAIRPCCall):
-    def __init__(self, server, port):
-        self._server = server
-        self._port = port
+    def _get_conn(self, server, port):
+        assert(False)
+        
+    def _put_conn(self, server, port, conn):
+        assert(False)
 
-    def call(self, method, *params):
-        client = xmlrpclib.ServerProxy(
-            'http://%s:%d' % (self._server, self._port),
-            allow_none=True)
-        try:
-            return getattr(client, method)(*params)
-        except xmlrpclib.Error, e:
-            print e.__class__
-            raise
-
-class UKAIXMLRPCTranslation(UKAIRPCTranslation):
+class UKAIXMLRPCConnection(UKAIRPCConnection):
     def encode(self, source):
         return xmlrpclib.Binary(source)
 
     def decode(self, source):
         return source.data
+
+    def _call(self, conn, method, *params):
+        try:
+            return getattr(conn, method)(*params)
+        except xmlrpclib.Error, e:
+            print e.__class__
+            raise
+
+    def _get_conn(self, server, port):
+        conn_key = '%s:%d' % (server, port)
+        if conn_key not in self._servers:
+            self._servers[conn_key] = []
+        conn_pool = self._servers[conn_key]
+        conn = None
+        try:
+            conn = conn_pool.pop()
+        except IndexError:
+            conn = xmlrpclib.ServerProxy(
+                'http://%s:%d' % (server, port), allow_none=True)
+        return conn
+
+    def _put_conn(self, server, port, conn):
+        conn_key = '%s:%d' % (server, port)
+        self._servers[conn_key].append(conn)
+
+ukai_rpc_connection = UKAIXMLRPCConnection()

@@ -41,7 +41,7 @@ from ukai_config import UKAIConfig
 from ukai_local_io import ukai_local_read, ukai_local_write
 from ukai_metadata import UKAIMetadata
 from ukai_metadata import UKAI_IN_SYNC, UKAI_SYNCING, UKAI_OUT_OF_SYNC
-from ukai_rpc import UKAIXMLRPCCall, UKAIXMLRPCTranslation
+from ukai_rpc import ukai_rpc_connection
 from ukai_statistics import UKAIStatistics
 from ukai_utils import UKAIIsLocalNode
 
@@ -59,9 +59,10 @@ def ukai_data_destroy(image_name, config):
         for location in n.keys():
             location_set.add(location)
     for location in location_set:
-        rpc_call = UKAIXMLRPCCall(location, config.get('core_port'))
         # XXX handle rpc error.
-        rpc_call.call('proxy_destroy_image', image_name)
+        ukai_rpc_connection.call(
+            location, config.get('core_port'),
+            'proxy_destroy_image', image_name)
 
     return 0
 
@@ -73,8 +74,10 @@ def ukai_data_location_destroy(image_name, location, config):
     param location: address of a location
     param config: an UKAIConfig instance
     '''
-    rpc_call = UKAIXMLRPCCall(location, config.get('core_port'))
-    rpc_call.call('proxy_destroy_image', image_name)
+    # XXX handle rpc error.
+    ukai_rpc_connection.call(
+        location, config.get('core_port'),
+        'proxy_destroy_image', image_name)
     return 0
 
 class UKAIData(object):
@@ -91,7 +94,6 @@ class UKAIData(object):
         self._metadata = metadata
         self._node_error_state_set = node_error_state_set
         self._config = config
-        self._rpc_trans = UKAIXMLRPCTranslation()
         # Lock objects per block index.
         self._lock = []
         for blk_idx in range(0, len(metadata.blocks)):
@@ -271,15 +273,15 @@ class UKAIData(object):
             block.
         size: the length of the data to be read.
         '''
-        rpc_call = UKAIXMLRPCCall(node,
-                                  self._config.get('core_port'))
-        encoded_data = rpc_call.call('proxy_read',
-                                     self._metadata.name,
-                                     str(self._metadata.block_size),
-                                     str(blk_idx),
-                                     str(off_in_blk),
-                                     str(size_in_blk))
-        return zlib.decompress(self._rpc_trans.decode(encoded_data))
+        encoded_data = ukai_rpc_connection.call(
+            node, self._config.get('core_port'),
+            'proxy_read',
+            self._metadata.name,
+            str(self._metadata.block_size),
+            str(blk_idx),
+            str(off_in_blk),
+            str(size_in_blk))
+        return zlib.decompress(ukai_rpc_connection.decode(encoded_data))
 
     def write(self, data, offset):
         '''
@@ -396,13 +398,14 @@ class UKAIData(object):
             block.
         data: the data to be written.
         '''
-        rpc_call = UKAIXMLRPCCall(node, self._config.get('core_port'))
-        return rpc_call.call('proxy_write',
-                             self._metadata.name,
-                             str(self._metadata.block_size),
-                             str(blk_idx),
-                             str(off_in_blk),
-                             self._rpc_trans.encode(zlib.compress(data)))
+        return ukai_rpc_connection.call(
+            node, self._config.get('core_port'),
+            'proxy_write',
+            self._metadata.name,
+            str(self._metadata.block_size),
+            str(blk_idx),
+            str(off_in_blk),
+            ukai_rpc_connection.encode(zlib.compress(data)))
 
     def synchronize_block(self, blk_idx):
         '''
@@ -479,12 +482,12 @@ class UKAIData(object):
             fh.write('\0')
             fh.close()
         else:
-            rpc_call = UKAIXMLRPCCall(
-                node, self._config.get('core_port'))
-            rpc_call.call('proxy_allocate_dataspace',
-                          self._metadata.name,
-                          self._metadata.block_size,
-                          blk_idx)
+            ukai_rpc_connection.call(
+                node, self._config.get('core_port'),
+                'proxy_allocate_dataspace',
+                self._metadata.name,
+                self._metadata.block_size,
+                blk_idx)
 
 if __name__ == '__main__':
     from ukai_node_error_state import UKAINodeErrorStateSet

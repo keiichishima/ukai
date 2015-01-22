@@ -37,7 +37,7 @@ import sys
 from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
 
 from ukai_config import UKAIConfig
-from ukai_rpc import UKAIXMLRPCClient, UKAIXMLRPCTranslation
+from ukai_rpc import ukai_rpc_connection
 
 class UKAIFUSE(LoggingMixIn, Operations):
     ''' The UKAIFUSE class provides a FUSE operation implementation.
@@ -49,8 +49,6 @@ class UKAIFUSE(LoggingMixIn, Operations):
         param config: an UKAIConfig instance
         '''
         self._config = config
-        self._rpc_client = UKAIXMLRPCClient(self._config)
-        self._rpc_trans = UKAIXMLRPCTranslation()
 
     def init(self, path):
         ''' Initializes the FUSE operation.
@@ -88,7 +86,9 @@ class UKAIFUSE(LoggingMixIn, Operations):
         param path: the path name of a file
         param fh: the file handle of the file (not used)
         '''
-        (ret, json_st) = self._rpc_client.call('getattr', path)
+        (ret, json_st) = ukai_rpc_connection.call(
+            self._config.get('core_server'), self._config.get('core_port'),
+            'getattr', path)
         if ret != 0:
             raise FuseOSError(ret)
         return json.loads(json_st)
@@ -106,7 +106,9 @@ class UKAIFUSE(LoggingMixIn, Operations):
         param path: the path name of a file
         param flags: the flags passed via the open(2) system call
         '''
-        ret, fh = self._rpc_client.call('open', path, flags)
+        ret, fh = ukai_rpc_connection.call(
+            self._config.get('core_server'), self._config.get('core_port'),
+            'open', path, flags)
         if ret != 0:
             raise FuseOSError(ret)
         return fh
@@ -117,7 +119,9 @@ class UKAIFUSE(LoggingMixIn, Operations):
         param path: the path name of a file
         param fh: the file handle of the file
         '''
-        self._rpc_client.call('release', path, fh)
+        ukai_rpc_connection.call(
+            self._config.get('core_server'), self._config.get('core_port'),
+            'release', path, fh)
         return 0
 
     def read(self, path, size, offset, fh):
@@ -130,18 +134,21 @@ class UKAIFUSE(LoggingMixIn, Operations):
         '''
         # The data returned by the UKAICore.read() method is encoded
         # using a RPC encorder.
-        ret, encoded_data = self._rpc_client.call('read', path,
-                                                  str(size), str(offset))
+        ret, encoded_data = ukai_rpc_connection.call(
+            self._config.get('core_server'), self._config.get('core_port'),
+            'read', path, str(size), str(offset))
         if ret != 0:
             raise FuseOSError(ret)
-        return self._rpc_trans.decode(encoded_data)
+        return ukai_rpc_connection.decode(encoded_data)
 
     def readdir(self, path, fh):
         ''' Returns directory entries of a path.
 
         param path: a path name to be investigated
         '''
-        return self._rpc_client.call('readdir', path)
+        return ukai_rpc_connection.call(
+            self._config.get('core_server'), self._config.get('core_port'),
+            'readdir', path)
 
     def readlink(self, path):
         ''' This interface is provided for reading a symbolic link
@@ -168,7 +175,9 @@ class UKAIFUSE(LoggingMixIn, Operations):
 
         param path: the path name of a file
         '''
-        return self._rpc_client.call('statfs', path)
+        return ukai_rpc_connection.call(
+            self._config.get('core_server'), self._config.get('core_port'),
+            'statfs', path)
 
     def symlink(self, target, source):
         ''' This interface is provided for creating a symbolic link
@@ -183,7 +192,9 @@ class UKAIFUSE(LoggingMixIn, Operations):
         param length: the new size of the file
         param fh: the file handle of the file
         '''
-        ret = self._rpc_client.call('truncate', path, str(length))
+        ret = ukai_rpc_connection.call(
+            self._config.get('core_server'), self._config.get('core_port'),
+            'truncate', path, str(length))
         if ret != 0:
             raise FuseOSError(ret)
         return ret
@@ -213,9 +224,10 @@ class UKAIFUSE(LoggingMixIn, Operations):
         '''
         # The data passed to the UKAICore.write interface must be
         # encoded using a proper RPC encoding mechanism.
-        encoded_data = self._rpc_trans.encode(data)
-        ret, nwritten = self._rpc_client.call('write', path,
-                                              encoded_data, str(offset))
+        encoded_data = ukai_rpc_connection.encode(data)
+        ret, nwritten = ukai_rpc_connection.call(
+            self._config.get('core_server'), self._config.get('core_port'),
+            'write', path, encoded_data, str(offset))
         if ret != 0:
             raise FuseOSError(ret)
         return nwritten

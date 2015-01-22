@@ -48,7 +48,7 @@ from ukai_local_io import ukai_local_destroy_image
 from ukai_metadata import UKAIMetadata, UKAI_OUT_OF_SYNC
 from ukai_metadata import ukai_metadata_create, ukai_metadata_destroy
 from ukai_node_error_state import UKAINodeErrorStateSet
-from ukai_rpc import UKAIXMLRPCTranslation
+from ukai_rpc import ukai_rpc_connection
 from ukai_statistics import UKAIStatistics, UKAIImageStatistics
 
 # XXX Fix this
@@ -103,7 +103,6 @@ class UKAICore(object):
         self._data_dict = {}
         self._config = config
         self._node_error_state_set = UKAINodeErrorStateSet()
-        self._rpc_trans = UKAIXMLRPCTranslation()
         self._writers = UKAIWriters()
         self._open_count = UKAIOpenImageCount()
         self._fh = 0
@@ -165,7 +164,7 @@ class UKAICore(object):
             return errno.ENOENT, None
         image_data = self._data_dict[image_name]
         data = image_data.read(size, offset)
-        return 0, self._rpc_trans.encode(data)
+        return 0, ukai_rpc_connection.encode(data)
 
     def readdir(self, path):
         return ['.', '..'] + self._metadata_dict.keys()
@@ -196,7 +195,7 @@ class UKAICore(object):
         if not self._exists(image_name):
             return errno.ENOENT, None
         image_data = self._data_dict[image_name]
-        return 0, image_data.write(self._rpc_trans.decode(encoded_data),
+        return 0, image_data.write(ukai_rpc_connection.decode(encoded_data),
                                    offset)
 
     def _get_metadata(self, image_name):
@@ -238,14 +237,14 @@ class UKAICore(object):
         size = int(str_size)
         data = ukai_local_read(image_name, block_size, block_index,
                                offset, size, self._config)
-        return self._rpc_trans.encode(zlib.compress(data))
+        return ukai_rpc_connection.encode(zlib.compress(data))
 
     def proxy_write(self, image_name, str_block_size, str_block_index,
                     str_offset, encoded_data):
         block_size = int(str_block_size)
         block_index = int(str_block_index)
         offset = int(str_offset)
-        data = zlib.decompress(self._rpc_trans.decode(encoded_data))
+        data = zlib.decompress(ukai_rpc_connection.decode(encoded_data))
         return ukai_local_write(image_name, block_size, block_index,
                                 offset, data, self._config)
 
@@ -258,8 +257,8 @@ class UKAICore(object):
                                                self._config)
 
     def proxy_update_metadata(self, image_name, encoded_metadata):
-        metadata_raw = json.loads(zlib.decompress(self._rpc_trans.decode(
-                    encoded_metadata)))
+        metadata_raw = json.loads(zlib.decompress(
+            ukai_rpc_connection.decode(encoded_metadata)))
         if image_name in self._metadata_dict:
             self._metadata_dict[image_name].metadata = metadata_raw
         else:

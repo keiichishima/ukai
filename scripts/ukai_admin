@@ -34,15 +34,16 @@ import os
 import sys
 
 from libukai.ukai_config import UKAIConfig, UKAI_CONFIG_FILE_DEFAULT
-from libukai.ukai_rpc import UKAIXMLRPCClient
+from libukai.ukai_rpc import ukai_rpc_connection
 
 class UKAIAdmin(object):
     def __init__(self, config):
         self._config = config
-        self._rpc_client = UKAIXMLRPCClient(self._config)
 
     def diag(self, *params):
-        self._rpc_client.call('ctl_diag', *params)
+        ukai_rpc_connection.call(
+            self._config.get('core_server'), self._config.get('core_port'),
+            'ctl_diag', *params)
 
     def create_image(self, *params):
         def usage():
@@ -68,18 +69,22 @@ class UKAIAdmin(object):
             return -1
         image_name = args[0]
         
-        return self._rpc_client.call('ctl_create_image', image_name,
-                                     str_size, block_size, location)
+        return ukai_rpc_connection.call(
+            self._config.get('core_server'), self._config.get('core_port'),
+            'ctl_create_image', image_name, str_size, block_size, location)
 
     def destroy_image(self, *params):
-        return self._rpc_client.call('ctl_destroy_image', *params)
+        return ukai_rpc_connection.call(
+            self._config.get('core_server'), self._config.get('core_port'),
+            'ctl_destroy_image', *params)
 
     def get_image_info(self, *params):
         if len(params) < 1:
             print ('Usage: %s get_image_info IMAGE_NAME'
                    % os.path.basename(sys.argv[0]))
             return -1
-        ret, json_metadata = self._rpc_client.call(
+        ret, json_metadata = ukai_rpc_connection.call(
+            self._config.get('core_server'), self._config.get('core_port'),
             'ctl_get_metadata', *params)
         metadata = json.loads(json_metadata)
         name = metadata['name']
@@ -137,14 +142,18 @@ block_size=%d''' % (name, size, block_size)
             print ('Usage: %s add_location IMAGE_NAME LOCATION'
                    % os.path.basename(sys.argv[0]))
             return -1
-        return self._rpc_client.call('ctl_add_location', *params)
+        return ukai_rpc_connection.call(
+            self._config.get('core_server'), self._config.get('core_port'),
+            'ctl_add_location', *params)
 
     def remove_location(self, *params):
         if len(params) < 2:
             print ('Usage: %s remove_location IMAGE_NAME LOCATION'
                    % os.path.basename(sys.argv[0]))
             return -1
-        return self._rpc_client.call('ctl_remove_location', *params)
+        return ukai_rpc_connection.call(
+            self._config.get('core_server'), self._config.get('core_port'),
+            'ctl_remove_location', *params)
 
     def synchronize(self, *params):
         if len(params) < 1:
@@ -163,8 +172,9 @@ block_size=%d''' % (name, size, block_size)
             if opt_pair[0] == '-v':
                 verbose = True
         image_name = args[0]
-        ret, json_metadata = self._rpc_client.call('ctl_get_metadata',
-                                                   image_name)
+        ret, json_metadata = ukai_rpc_connection.call(
+            self._config.get('core_server'), self._config.get('core_port'),
+            'ctl_get_metadata', image_name)
         if json_metadata is None:
             return -1
         metadata = json.loads(json_metadata)
@@ -177,11 +187,14 @@ block_size=%d''' % (name, size, block_size)
             print 'END_BLOCK must be greater or equal to START_BLOCK'
             return -1
 
-        return self._rpc_client.call('ctl_synchronize', image_name,
-                                     start, end, verbose)
+        return ukai_rpc_connection.call(
+            self._config.get('core_server'), self._config.get('core_port'),
+            'ctl_synchronize', image_name, start, end, verbose)
 
     def get_image_names(self, *params):
-        names = self._rpc_client.call('ctl_get_image_names', *params)
+        names = ukai_rpc_connection.call(
+            self._config.get('core_server'), self._config.get('core_port'),
+            'ctl_get_image_names', *params)
         for name in names:
             print name
         return 0

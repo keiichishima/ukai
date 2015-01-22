@@ -28,7 +28,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
 # OF SUCH DAMAGE.
 
-from SimpleXMLRPCServer import SimpleXMLRPCServer
+from SimpleXMLRPCServer import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
 import SocketServer
 import threading
 import xmlrpclib
@@ -40,12 +40,17 @@ class AsyncSimpleXMLRPCServer(SocketServer.ThreadingMixIn,
                               SimpleXMLRPCServer):
     pass
 
+class HTTP11SimpleXMLRPCRequestHandler(SimpleXMLRPCRequestHandler):
+    protocol_version = 'HTTP/1.1'
+    pass
+
 if __name__ == '__main__':
     config = UKAIConfig(UKAI_CONFIG_FILE_DEFAULT)
     core_server = config.get('core_server')
     core_port = config.get('core_port')
     core = UKAICore(config)
     server = AsyncSimpleXMLRPCServer((core_server, core_port),
+                                     requestHandler=HTTP11SimpleXMLRPCRequestHandler,
                                      logRequests=False,
                                      allow_none=True)
     server.register_instance(core)
