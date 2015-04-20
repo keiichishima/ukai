@@ -120,7 +120,7 @@ The below is a sample configuration file.
 
     {
         "id": "10.0.0.5",
-        "metadata_servers": "10.0.10.1,10.0.10.2,10.0.10.3",
+        "metadata_servers": "10.0.10.1",
         "core_server": "10.0.0.5",
         "core_port": 22221,
         "data_root": "/var/ukai/data",
