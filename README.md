@@ -74,7 +74,7 @@ following software modules are required to run the UKAI filesystem.
   to FUSE.
 * [netifaces][netifaces]: A portable library to access network
   interfaces from Python.
-* [ZooKeeper][zookeeper]: A centralized cluster management service.
+* [Redis][redis]: A fast key-value service.
 
 In some environment (e.g. Ubuntu), you may need to join the 'fuse'
 group and may need to configure the '/etc/fuse.conf' file to include
@@ -101,10 +101,11 @@ The following parameters can be configured.
 
 * `id`: IPv4 address of a local node.
 * `metadata_servers`: The list of addresses of metadata servers
-  that keep disk metadata information.  You need to prepare a
-  ZooKeeper cluster with these addresses.
+  that keep disk metadata information.  At this moment, only one
+  address can be specified.  You need to prepare a Redis server
+  with this addresses.
   Example:
-    "metadata_servers":"172.16.0.1,172.16.0.2"
+    "metadata_servers":"172.16.0.1"
 * `data_root`: The path where virtual machine disk image data is
   stored.
 * `blockname_format`: The filename format of each piece of blocks.
@@ -322,5 +323,6 @@ __________________________________________________________
   "A Python module that provides a simple interface to FUSE and MacFUSE"
 [netifaces]: http://alastairs-place.net/projects/netifaces/
   "Portable access to network interfaces from Python"
-[zookeeper]: http://zookeeper.apache.org/
-  "Apache ZooKeeper: A centralized cluster management service."
+[redis]: http://redis.io/
+  "Redis: an open source, BSD licensed, advanced key-value cache and
+  store."
